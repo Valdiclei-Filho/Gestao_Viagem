@@ -1,5 +1,6 @@
 package com.example.projetofinal.screens
 
+import android.net.Uri
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
@@ -10,6 +11,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +23,8 @@ import androidx.navigation.NavController
 import com.example.projetofinal.R
 import com.example.projetofinal.data.model.Viagem
 import com.example.projetofinal.viewmodel.ViagemViewModel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import java.time.format.DateTimeFormatter
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -54,14 +58,16 @@ fun HomeScreen(navController: NavController, viewModel: ViagemViewModel, userId:
                 ) {
                     items(viagems, key = { it.id }) { travel ->
                         val dismissState = rememberSwipeToDismissBoxState()
+                        val coroutineScope = rememberCoroutineScope()
 
                         SwipeToDismissBox(
                             state = dismissState,
                             enableDismissFromStartToEnd = true,
-                            enableDismissFromEndToStart = false,
+                            enableDismissFromEndToStart = true,
                             backgroundContent = {
                                 val icon = when (dismissState.targetValue) {
                                     SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Delete
+                                    SwipeToDismissBoxValue.EndToStart -> Icons.Default.Description
                                     else -> null
                                 }
 
@@ -140,6 +146,20 @@ fun HomeScreen(navController: NavController, viewModel: ViagemViewModel, userId:
                                         viagems = viagems.filter { it.id != travel.id }
                                     } else {
                                         dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+                                    }
+                                }
+
+                                SwipeToDismissBoxValue.EndToStart -> {
+                                    coroutineScope.launch {
+                                        try {
+                                            val roteiro = viewModel.gerarRoteiroGemini(travel)
+                                            val encodedRoteiro = Uri.encode(roteiro)
+                                            navController.navigate("roteiroIA/$encodedRoteiro")
+                                        } catch (e: Exception) {
+                                            snackbarHostState.showSnackbar("Erro: ${e.localizedMessage}")
+                                        } finally {
+                                            dismissState.snapTo(SwipeToDismissBoxValue.Settled)
+                                        }
                                     }
                                 }
 
